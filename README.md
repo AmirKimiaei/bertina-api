@@ -257,6 +257,124 @@ last_updated — last refresh timestamp
 
 ---
 
+### `bertina.places` — Places Directory
+
+Browse Iran's business directory across 32 provinces and 1,014 cities.
+
+**Browse provinces and cities:**
+```python
+from bertina.places import BertinaPlaces
+
+with BertinaPlaces() as client:
+    provinces = client.get_provinces()
+    print(f"{len(provinces)} provinces")
+    for province in provinces[:2]:
+        print(f"\n{province.name} ({len(province.cities)} cities)")
+        for city in province.cities[:3]:
+            print(f"  {city.name} — {city.place_count}")
+            print(f"  Top categories: {city.categories}")
+```
+
+**Browse categories in a city:**
+```python
+with BertinaPlaces() as client:
+    categories = client.get_city("تهران")
+    for cat in categories[:5]:
+        print(f"{cat.name} — {cat.place_count}")
+```
+
+**List places in a city/category:**
+```python
+with BertinaPlaces() as client:
+    cards = client.get_category("تهران", "کافه")
+    for place in cards:
+        print(f"{place.name} | {place.neighbourhood} | rating: {place.rating}")
+        print(f"  {place.url}")
+```
+
+**Get full place detail:**
+```python
+with BertinaPlaces() as client:
+    detail = client.get_place("hilo-cafe")
+    print(detail.name, "|", detail.city, "|", detail.neighbourhood)
+    print("Rating:", detail.rating, f"({detail.rating_count} reviews)")
+    print("Address:", detail.address)
+    print("Coordinates:", detail.latitude, detail.longitude)
+    print("Category:", detail.category)
+    print("Phone:", detail.phone)
+    print("Website:", detail.website)
+    for day, hours in detail.opening_hours.items():
+        print(f"  {day}: {hours}")
+```
+
+**Async:**
+```python
+import asyncio
+from bertina.places import AsyncBertinaPlaces
+
+async def main():
+    async with AsyncBertinaPlaces() as client:
+        provinces = await client.get_provinces()
+        categories = await client.get_city("اصفهان")
+        cards = await client.get_category("اصفهان", "رستوران")
+        detail = await client.get_place(cards[0].slug)
+        print(detail.name)
+
+asyncio.run(main())
+```
+
+**`Province`**
+```
+name     — province name (e.g. "استان تهران")
+cities   — list[City]
+```
+
+**`City`**
+```
+name         — city name (e.g. "تهران")
+url          — full URL to city's places page
+place_count  — formatted count (e.g. "۲۶,۱۷۷ مکان")
+categories   — list of top category names in that city
+```
+
+**`PlacesCategory`**
+```
+name         — category name (e.g. "کافه")
+url          — full URL to category listing
+place_count  — formatted count (e.g. "۴,۰۹۸ مکان")
+```
+
+**`PlaceCard`**
+```
+name          — place name
+url           — place detail URL
+slug          — URL slug (e.g. "hilo-cafe")
+neighbourhood — neighbourhood name
+rating        — rating string (if available)
+thumbnail     — thumbnail image URL
+```
+
+**`PlaceDetail`**
+```
+name           — place name
+slug           — URL slug
+city           — city name
+neighbourhood  — neighbourhood name
+description    — description text
+address        — street address
+latitude       — GPS latitude (float)
+longitude      — GPS longitude (float)
+rating         — rating score (float)
+rating_count   — number of reviews (int)
+category       — place type (e.g. "کافه")
+phone          — phone number
+website        — website URL
+opening_hours  — dict mapping day name → hours string
+thumbnail      — thumbnail image URL
+```
+
+---
+
 ## Client Options
 
 All clients accept these parameters:
@@ -333,7 +451,7 @@ print(DNS_IP)  # 193.186.32.32
 **Phase 1 (current)**
 - [x] `bertina.search` — all 7 search types + website alive check
 - [x] `bertina.radar` — news radar
-- [ ] `bertina.places` — business directory
+- [x] `bertina.places` — business directory (32 provinces, 1,014 cities)
 - [ ] `bertina.translate` — translation (34 languages)
 - [ ] `bertina.weather` — weather forecasts
 
@@ -353,11 +471,17 @@ src/bertina/
 ├── _parsers.py        — shared HTML parsing helpers
 ├── constants.py       — service URLs, headers, DNS IP
 ├── exceptions.py      — BertinaError hierarchy
-├── search/            — search module
+├── search/            — search module (7 types + alive check)
 ├── radar/             — news radar module
-├── places/            — places module (coming soon)
+├── places/            — places directory module
 ├── translate/         — translation module (coming soon)
 └── weather/           — weather module (coming soon)
+
+tests/
+├── conftest.py        — shared fixture loader
+├── search/            — parser + client tests, 7 HTML fixtures
+├── radar/             — parser + client tests, 1 HTML fixture
+└── places/            — parser + client tests, 4 HTML fixtures
 ```
 
 ---
