@@ -66,7 +66,7 @@ class BaseClient:
         *,
         timeout: float = 15.0,
         headers: dict | None = None,
-        proxies: dict | None = None,
+        proxy: str | None = None,
         debug: bool = False,
         cache_ttl: int = 300,
         max_retries: int = 3,
@@ -77,7 +77,7 @@ class BaseClient:
         self._client = httpx.Client(
             timeout=timeout,
             headers=merged,
-            proxies=proxies,
+            proxy=proxy,
             follow_redirects=True,
         )
         self._max_retries = max_retries
@@ -105,6 +105,19 @@ class BaseClient:
         self._cache.set(url, params, html)
         return html
 
+    def check_url_alive(self, url: str, timeout: float = 5.0) -> bool:
+        """Return True if the URL responds with a non-error status code."""
+        try:
+            response = self._client.head(url, timeout=timeout, follow_redirects=True)
+            # Some servers block HEAD — fall back to GET with no body
+            if response.status_code == 405:
+                response = self._client.get(url, timeout=timeout, follow_redirects=True)
+            logger.debug("alive check %s -> %s", url, response.status_code)
+            return response.status_code < 400
+        except Exception as exc:
+            logger.debug("alive check failed %s: %s", url, exc)
+            return False
+
     def close(self) -> None:
         self._client.close()
 
@@ -121,7 +134,7 @@ class AsyncBaseClient:
         *,
         timeout: float = 15.0,
         headers: dict | None = None,
-        proxies: dict | None = None,
+        proxy: str | None = None,
         debug: bool = False,
         cache_ttl: int = 300,
         max_retries: int = 3,
@@ -133,7 +146,7 @@ class AsyncBaseClient:
         self._client = httpx.AsyncClient(
             timeout=timeout,
             headers=merged,
-            proxies=proxies,
+            proxy=proxy,
             follow_redirects=True,
         )
         self._max_retries = max_retries
@@ -162,6 +175,18 @@ class AsyncBaseClient:
         html = await _do()
         self._cache.set(url, params, html)
         return html
+
+    async def check_url_alive(self, url: str, timeout: float = 5.0) -> bool:
+        """Return True if the URL responds with a non-error status code."""
+        try:
+            response = await self._client.head(url, timeout=timeout, follow_redirects=True)
+            if response.status_code == 405:
+                response = await self._client.get(url, timeout=timeout, follow_redirects=True)
+            logger.debug("alive check %s -> %s", url, response.status_code)
+            return response.status_code < 400
+        except Exception as exc:
+            logger.debug("alive check failed %s: %s", url, exc)
+            return False
 
     async def aclose(self) -> None:
         await self._client.aclose()

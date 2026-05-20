@@ -13,6 +13,7 @@ class WebResult:
     description: str = ""
     favicon_url: str = ""
     sitelinks: list[dict[str, str]] = field(default_factory=list)
+    is_alive: bool | None = None  # None = not checked, True = reachable, False = unreachable
 
 
 @dataclass(slots=True)

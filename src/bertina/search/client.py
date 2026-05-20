@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -17,7 +18,7 @@ from .parsers import (
 )
 from .._parsers import parse_html
 from .enums import SearchType
-from .models import SearchResponse
+from .models import SearchResponse, WebResult
 
 logger = logging.getLogger("bertina.search")
 
@@ -90,6 +91,13 @@ class BertinaSearch(BaseClient):
         html = self._get(url, params)
         return _parse_response(html, query, type, page, self.debug)
 
+    def check_alive(self, response: SearchResponse, *, timeout: float = 5.0) -> SearchResponse:
+        """Check which WebResult URLs are reachable. Populates is_alive on each result."""
+        for result in response.results:
+            if isinstance(result, WebResult) and result.url:
+                result.is_alive = self.check_url_alive(result.url, timeout=timeout)
+        return response
+
 
 class AsyncBertinaSearch(AsyncBaseClient):
     """Asynchronous Bertina search client."""
@@ -109,3 +117,15 @@ class AsyncBertinaSearch(AsyncBaseClient):
         logger.debug("search query=%r type=%s page=%d", query, type, page)
         html = await self._aget(url, params)
         return _parse_response(html, query, type, page, self.debug)
+
+    async def check_alive(self, response: SearchResponse, *, timeout: float = 5.0) -> SearchResponse:
+        """Concurrently check which WebResult URLs are reachable."""
+        web_results = [r for r in response.results if isinstance(r, WebResult) and r.url]
+        if not web_results:
+            return response
+
+        async def _check(result: WebResult) -> None:
+            result.is_alive = await self.check_url_alive(result.url, timeout=timeout)
+
+        await asyncio.gather(*[_check(r) for r in web_results])
+        return response
