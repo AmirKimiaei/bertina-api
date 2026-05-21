@@ -375,6 +375,135 @@ thumbnail      — thumbnail image URL
 
 ---
 
+### `bertina.translate` — Translation
+
+Translate text between 34 languages using the Bertina translation API.
+
+```python
+from bertina.translate import BertinaTranslate, Language
+
+with BertinaTranslate() as client:
+    result = client.translate("Hello world", target=Language.FA)
+    print(result.translated_text)   # سلام دنیا
+    print(result.source_lang)       # Language.AUTO
+    print(result.target_lang)       # Language.FA
+    print(result.detected_lang)     # Language.EN (auto-detected)
+```
+
+**Specify source language:**
+```python
+with BertinaTranslate() as client:
+    result = client.translate("سلام دنیا", source=Language.FA, target=Language.EN)
+    print(result.translated_text)   # Hello world
+```
+
+**Async:**
+```python
+from bertina.translate import AsyncBertinaTranslate, Language
+
+async with AsyncBertinaTranslate() as client:
+    result = await client.translate("Bonjour", target=Language.EN)
+```
+
+**`TranslationResult`**
+```
+source_text      — original input text
+translated_text  — translated output
+source_lang      — source language (Language.AUTO if auto-detect was used)
+target_lang      — target language
+detected_lang    — detected language (Language or None if source was specified)
+```
+
+**Supported languages (`Language` enum — 34 values):**
+`AUTO, FA, EN, AR, DE, FR, ES, IT, PT, RU, ZH, JA, KO, HI, BN, TR, VI, UR, ID, PL, RO, NL, TH, CS, EL, PS, SV, BG, KK, AZ, KU, HU, MY, UK`
+
+---
+
+### `bertina.weather` — Weather Forecasts
+
+Get current weather and 7-day forecasts for any city (powered by open-meteo.com, the same data source Bertina's weather page uses).
+
+```python
+from bertina.weather import BertinaWeather
+
+with BertinaWeather() as client:
+    forecast = client.forecast("Tehran")
+    print(forecast.current.temperature)   # 22.0
+    print(forecast.current.condition)     # عمدتاً صاف
+    print(forecast.current.humidity)      # 45
+    print(forecast.current.wind_speed)    # 10.0
+```
+
+**Daily forecast:**
+```python
+with BertinaWeather() as client:
+    forecast = client.forecast("اصفهان")
+    for day in forecast.daily:
+        print(day.date, day.temp_max, day.temp_min, day.condition)
+```
+
+**Hourly forecast:**
+```python
+with BertinaWeather() as client:
+    forecast = client.forecast("Tehran")
+    for hour in forecast.hourly[:6]:
+        print(hour.time, hour.temperature, hour.condition)
+```
+
+**Async:**
+```python
+from bertina.weather import AsyncBertinaWeather
+
+async with AsyncBertinaWeather() as client:
+    forecast = await client.forecast("مشهد")
+    print(forecast.location, forecast.latitude, forecast.longitude)
+```
+
+**`WeatherForecast`**
+```
+location    — resolved city name (in Persian if available)
+latitude    — GPS latitude
+longitude   — GPS longitude
+current     — WeatherCurrent object
+hourly      — list[WeatherHour] (168 hours / 7 days)
+daily       — list[WeatherDay] (7 days)
+```
+
+**`WeatherCurrent`**
+```
+temperature    — current temperature (°C)
+feels_like     — apparent temperature (°C)
+humidity       — relative humidity (%)
+wind_speed     — wind speed (km/h)
+wind_direction — wind direction (degrees)
+condition      — weather description in Persian (e.g. "عمدتاً صاف")
+pressure       — surface pressure (hPa)
+visibility     — visibility (metres)
+uv_index       — UV index
+precipitation  — current precipitation (mm)
+```
+
+**`WeatherDay`**
+```
+date                     — date string (e.g. "2024-01-01")
+temp_max                 — max temperature (°C)
+temp_min                 — min temperature (°C)
+condition                — weather description in Persian
+precipitation_probability — max precipitation probability (%)
+sunrise                  — sunrise time string
+sunset                   — sunset time string
+```
+
+**`WeatherHour`**
+```
+time                     — datetime string (e.g. "2024-01-01T14:00")
+temperature              — temperature (°C)
+condition                — weather description in Persian
+precipitation_probability — precipitation probability (%)
+```
+
+---
+
 ## Client Options
 
 All clients accept these parameters:
@@ -452,8 +581,8 @@ print(DNS_IP)  # 193.186.32.32
 - [x] `bertina.search` — all 7 search types + website alive check
 - [x] `bertina.radar` — news radar
 - [x] `bertina.places` — business directory (32 provinces, 1,014 cities)
-- [ ] `bertina.translate` — translation (34 languages)
-- [ ] `bertina.weather` — weather forecasts
+- [x] `bertina.translate` — translation (34 languages)
+- [x] `bertina.weather` — weather forecasts (open-meteo.com)
 
 **Phase 2 (planned)**
 - [ ] `bertina.llm` — AI assistant (llm.bertina.ir)
@@ -474,14 +603,16 @@ src/bertina/
 ├── search/            — search module (7 types + alive check)
 ├── radar/             — news radar module
 ├── places/            — places directory module
-├── translate/         — translation module (coming soon)
-└── weather/           — weather module (coming soon)
+├── translate/         — translation module (34 languages)
+└── weather/           — weather module (open-meteo.com)
 
 tests/
 ├── conftest.py        — shared fixture loader
 ├── search/            — parser + client tests, 7 HTML fixtures
 ├── radar/             — parser + client tests, 1 HTML fixture
-└── places/            — parser + client tests, 4 HTML fixtures
+├── places/            — parser + client tests, 4 HTML fixtures
+├── translate/         — client tests (13 tests)
+└── weather/           — client tests (10 tests)
 ```
 
 ---
