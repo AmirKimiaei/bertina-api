@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 
 import httpx
 import pytest
@@ -13,7 +12,9 @@ GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 
-def _geocoding_response(name: str = "Tehran", lat: float = 35.69, lon: float = 51.42) -> dict:
+def _geocoding_response(
+    name: str = "Tehran", lat: float = 35.69, lon: float = 51.42
+) -> dict:
     return {
         "results": [
             {"name": name, "latitude": lat, "longitude": lon, "country": "Iran"}
@@ -140,7 +141,9 @@ class TestBertinaWeather:
     @respx.mock
     def test_coordinates_from_geocoding(self):
         respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json=_geocoding_response(lat=35.69, lon=51.42))
+            return_value=httpx.Response(
+                200, json=_geocoding_response(lat=35.69, lon=51.42)
+            )
         )
         respx.get(FORECAST_URL).mock(
             return_value=httpx.Response(200, json=_forecast_response())

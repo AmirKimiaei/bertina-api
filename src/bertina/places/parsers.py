@@ -4,9 +4,8 @@ import json
 import logging
 import re
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 
-from .._parsers import _safe_text
 from .models import City, PlaceCard, PlaceDetail, PlacesCategory, Province
 
 logger = logging.getLogger("bertina.places")
@@ -27,12 +26,14 @@ def parse_provinces(soup: BeautifulSoup) -> list[Province]:
             cat_tags = card.select("span.rounded-full")
             if not name_tag:
                 continue
-            cities.append(City(
-                name=name_tag.get_text(strip=True),
-                url=str(href),
-                place_count=count_tag.get_text(strip=True) if count_tag else "",
-                categories=[t.get_text(strip=True) for t in cat_tags],
-            ))
+            cities.append(
+                City(
+                    name=name_tag.get_text(strip=True),
+                    url=str(href),
+                    place_count=count_tag.get_text(strip=True) if count_tag else "",
+                    categories=[t.get_text(strip=True) for t in cat_tags],
+                )
+            )
         provinces.append(Province(name=prov_name, cities=cities))
     return provinces
 
@@ -45,11 +46,13 @@ def parse_city_categories(soup: BeautifulSoup) -> list[PlacesCategory]:
         count_tag = card.select_one("div.text-xs")
         if not name_tag:
             continue
-        categories.append(PlacesCategory(
-            name=name_tag.get_text(strip=True),
-            url=str(href),
-            place_count=count_tag.get_text(strip=True) if count_tag else "",
-        ))
+        categories.append(
+            PlacesCategory(
+                name=name_tag.get_text(strip=True),
+                url=str(href),
+                place_count=count_tag.get_text(strip=True) if count_tag else "",
+            )
+        )
     return categories
 
 
@@ -64,14 +67,16 @@ def parse_place_cards(soup: BeautifulSoup) -> list[PlaceCard]:
         neigh_tag = card.select_one("p.mt-1.text-xs")
         rating_tag = card.select_one("span.font-semibold")
         img_tag = card.select_one("img")
-        cards.append(PlaceCard(
-            name=name_tag.get_text(strip=True),
-            url=href,
-            slug=slug,
-            neighbourhood=neigh_tag.get_text(strip=True) if neigh_tag else "",
-            rating=rating_tag.get_text(strip=True) if rating_tag else "",
-            thumbnail=str(img_tag.get("src", "")) if img_tag else "",
-        ))
+        cards.append(
+            PlaceCard(
+                name=name_tag.get_text(strip=True),
+                url=href,
+                slug=slug,
+                neighbourhood=neigh_tag.get_text(strip=True) if neigh_tag else "",
+                rating=rating_tag.get_text(strip=True) if rating_tag else "",
+                thumbnail=str(img_tag.get("src", "")) if img_tag else "",
+            )
+        )
     return cards
 
 
@@ -85,7 +90,7 @@ def _extract_place_json(html: str) -> dict | None:
     start = html.rfind("{", 0, match.start())
     if start == -1:
         return None
-    chunk = html[start:start + 8192].replace('\\"', '"')
+    chunk = html[start : start + 8192].replace('\\"', '"')
     depth = 0
     end = 0
     for i, ch in enumerate(chunk):
@@ -105,7 +110,9 @@ def _extract_place_json(html: str) -> dict | None:
         return None
 
 
-def parse_place_detail(soup: BeautifulSoup, html: str, debug: bool = False) -> PlaceDetail:
+def parse_place_detail(
+    soup: BeautifulSoup, html: str, debug: bool = False
+) -> PlaceDetail:
     data = _extract_place_json(html)
     if data:
         hours = data.get("opening_hours") or {}

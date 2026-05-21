@@ -18,7 +18,7 @@ from .parsers import (
 
 logger = logging.getLogger("bertina.places")
 
-_PROVINCES_TTL = 86400   # 24 h — province/city list rarely changes
+_PROVINCES_TTL = 86400  # 24 h — province/city list rarely changes
 _CATEGORY_TTL = 3600
 _LISTING_TTL = 1800
 _DETAIL_TTL = 3600

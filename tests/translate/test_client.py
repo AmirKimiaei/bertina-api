@@ -7,7 +7,12 @@ import pytest
 import respx
 
 from bertina.exceptions import BertinaHTTPError, BertinaParseError
-from bertina.translate import AsyncBertinaTranslate, BertinaTranslate, Language, TranslationResult
+from bertina.translate import (
+    AsyncBertinaTranslate,
+    BertinaTranslate,
+    Language,
+    TranslationResult,
+)
 
 TRANSLATE_URL = "https://translate.bertina.ir/api/translate"
 
@@ -15,6 +20,7 @@ TRANSLATE_URL = "https://translate.bertina.ir/api/translate"
 def _mock_body(translated: str, detected: str | None = None) -> str:
     """Build a mock NDJSON body matching the real API stream format."""
     import json
+
     lines = [json.dumps({"response": translated, "done": False})]
     final: dict = {"response": "", "done": True}
     if detected:
@@ -43,7 +49,9 @@ class TestBertinaTranslate:
             return_value=httpx.Response(200, text=_mock_body("Hello world"))
         )
         with BertinaTranslate() as client:
-            result = client.translate("سلام دنیا", source=Language.FA, target=Language.EN)
+            result = client.translate(
+                "سلام دنیا", source=Language.FA, target=Language.EN
+            )
         assert result.source_lang == Language.FA
         assert result.target_lang == Language.EN
 

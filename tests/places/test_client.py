@@ -19,7 +19,9 @@ BASE = "https://search.bertina.ir"
 class TestBertinaPlaces:
     @respx.mock
     def test_get_provinces(self):
-        respx.get(f"{BASE}/places").mock(return_value=httpx.Response(200, text=PROVINCES_HTML))
+        respx.get(f"{BASE}/places").mock(
+            return_value=httpx.Response(200, text=PROVINCES_HTML)
+        )
         with BertinaPlaces() as client:
             provinces = client.get_provinces()
         assert len(provinces) == 32
@@ -67,7 +69,9 @@ class TestBertinaPlaces:
 class TestAsyncBertinaPlaces:
     @respx.mock
     async def test_get_provinces(self):
-        respx.get(f"{BASE}/places").mock(return_value=httpx.Response(200, text=PROVINCES_HTML))
+        respx.get(f"{BASE}/places").mock(
+            return_value=httpx.Response(200, text=PROVINCES_HTML)
+        )
         async with AsyncBertinaPlaces() as client:
             provinces = await client.get_provinces()
         assert len(provinces) == 32

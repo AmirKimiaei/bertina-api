@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 
 def load_fixture(module: str, name: str) -> str:

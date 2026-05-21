@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from bs4 import BeautifulSoup, Tag
 
@@ -31,7 +30,9 @@ def _safe_text(tag: Tag | BeautifulSoup, *selectors: str, default: str = "") -> 
     return default
 
 
-def _safe_attr(tag: Tag | BeautifulSoup, attr: str, *selectors: str, default: str = "") -> str:
+def _safe_attr(
+    tag: Tag | BeautifulSoup, attr: str, *selectors: str, default: str = ""
+) -> str:
     el = _safe_select(tag, *selectors)
     if el:
         val = el.get(attr, default)

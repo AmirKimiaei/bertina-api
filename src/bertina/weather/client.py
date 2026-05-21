@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from .._base import AsyncBaseClient, BaseClient
-from ..exceptions import BertinaHTTPError, BertinaParseError
+from ..exceptions import BertinaParseError
 from .models import WeatherCurrent, WeatherDay, WeatherForecast, WeatherHour
 
 logger = logging.getLogger("bertina.weather")
@@ -12,27 +12,43 @@ logger = logging.getLogger("bertina.weather")
 _GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 _FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
-_CURRENT_PARAMS = ",".join([
-    "temperature_2m",
-    "apparent_temperature",
-    "relative_humidity_2m",
-    "wind_speed_10m",
-    "wind_direction_10m",
-    "weather_code",
-    "surface_pressure",
-    "visibility",
-    "uv_index",
-    "precipitation",
-])
+_CURRENT_PARAMS = ",".join(
+    [
+        "temperature_2m",
+        "apparent_temperature",
+        "relative_humidity_2m",
+        "wind_speed_10m",
+        "wind_direction_10m",
+        "weather_code",
+        "surface_pressure",
+        "visibility",
+        "uv_index",
+        "precipitation",
+    ]
+)
 
 _WMO_LABELS = {
-    0: "آسمان صاف", 1: "عمدتاً صاف", 2: "نیمه ابری", 3: "ابری",
-    45: "مه آلود", 48: "مه یخبندان",
-    51: "نم نم باران", 53: "باران خفیف", 55: "باران متوسط",
-    61: "باران سبک", 63: "باران متوسط", 65: "باران سنگین",
-    71: "برف سبک", 73: "برف متوسط", 75: "برف سنگین",
-    80: "رگبار سبک", 81: "رگبار متوسط", 82: "رگبار سنگین",
-    95: "طوفان رعد و برق", 96: "طوفان با تگرگ", 99: "طوفان با تگرگ سنگین",
+    0: "آسمان صاف",
+    1: "عمدتاً صاف",
+    2: "نیمه ابری",
+    3: "ابری",
+    45: "مه آلود",
+    48: "مه یخبندان",
+    51: "نم نم باران",
+    53: "باران خفیف",
+    55: "باران متوسط",
+    61: "باران سبک",
+    63: "باران متوسط",
+    65: "باران سنگین",
+    71: "برف سبک",
+    73: "برف متوسط",
+    75: "برف سنگین",
+    80: "رگبار سبک",
+    81: "رگبار متوسط",
+    82: "رگبار سنگین",
+    95: "طوفان رعد و برق",
+    96: "طوفان با تگرگ",
+    99: "طوفان با تگرگ سنگین",
 }
 
 
@@ -44,6 +60,7 @@ def _geocode(client_get: Any, city: str) -> tuple[str, float, float]:
     """Return (name, lat, lon) for the first geocoding result."""
     data = client_get(_GEOCODING_URL, {"name": city, "count": 1, "language": "fa"})
     import json
+
     results = json.loads(data).get("results") or []
     if not results:
         raise BertinaParseError(f"city not found: {city!r}")
@@ -52,8 +69,11 @@ def _geocode(client_get: Any, city: str) -> tuple[str, float, float]:
 
 
 async def _ageocide(client_aget: Any, city: str) -> tuple[str, float, float]:
-    data = await client_aget(_GEOCODING_URL, {"name": city, "count": 1, "language": "fa"})
+    data = await client_aget(
+        _GEOCODING_URL, {"name": city, "count": 1, "language": "fa"}
+    )
     import json
+
     results = json.loads(data).get("results") or []
     if not results:
         raise BertinaParseError(f"city not found: {city!r}")
@@ -75,8 +95,11 @@ def _build_forecast_params(lat: float, lon: float) -> dict:
     }
 
 
-def _parse_forecast(data: dict, location: str, lat: float, lon: float) -> WeatherForecast:
+def _parse_forecast(
+    data: dict, location: str, lat: float, lon: float
+) -> WeatherForecast:
     import json as _json
+
     if isinstance(data, str):
         data = _json.loads(data)
 
@@ -154,6 +177,7 @@ class BertinaWeather(BaseClient):
         logger.debug("weather forecast city=%r lat=%s lon=%s", city, lat, lon)
         raw = self._get(_FORECAST_URL, _build_forecast_params(lat, lon))
         import json
+
         return _parse_forecast(json.loads(raw), location, lat, lon)
 
 
@@ -168,4 +192,5 @@ class AsyncBertinaWeather(AsyncBaseClient):
         logger.debug("weather forecast city=%r lat=%s lon=%s", city, lat, lon)
         raw = await self._aget(_FORECAST_URL, _build_forecast_params(lat, lon))
         import json
+
         return _parse_forecast(json.loads(raw), location, lat, lon)

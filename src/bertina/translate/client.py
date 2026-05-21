@@ -86,6 +86,7 @@ class BertinaTranslate(BaseClient):
         )
         if response.status_code == 429:
             from ..exceptions import BertinaRateLimitError
+
             raise BertinaRateLimitError()
         if response.status_code >= 400:
             raise BertinaHTTPError(
@@ -118,6 +119,7 @@ class AsyncBertinaTranslate(AsyncBaseClient):
             )
         if response.status_code == 429:
             from ..exceptions import BertinaRateLimitError
+
             raise BertinaRateLimitError()
         if response.status_code >= 400:
             raise BertinaHTTPError(

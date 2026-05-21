@@ -37,7 +37,9 @@ class TestBertinaRadar:
 
     @respx.mock
     def test_cache_avoids_second_request(self):
-        route = respx.get(RADAR_URL).mock(return_value=httpx.Response(200, text=RADAR_HTML))
+        route = respx.get(RADAR_URL).mock(
+            return_value=httpx.Response(200, text=RADAR_HTML)
+        )
         with BertinaRadar(cache_ttl=60) as radar:
             radar.get()
             radar.get()

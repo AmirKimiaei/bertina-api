@@ -37,7 +37,9 @@ class TestBertinaSearch:
 
     @respx.mock
     def test_pagination_param(self):
-        route = respx.get(SEARCH_URL).mock(return_value=httpx.Response(200, text=WEB_HTML))
+        route = respx.get(SEARCH_URL).mock(
+            return_value=httpx.Response(200, text=WEB_HTML)
+        )
         with BertinaSearch() as client:
             client.search("python", page=2)
         assert route.called
@@ -46,7 +48,9 @@ class TestBertinaSearch:
 
     @respx.mock
     def test_web_type_has_no_type_param(self):
-        route = respx.get(SEARCH_URL).mock(return_value=httpx.Response(200, text=WEB_HTML))
+        route = respx.get(SEARCH_URL).mock(
+            return_value=httpx.Response(200, text=WEB_HTML)
+        )
         with BertinaSearch() as client:
             client.search("python", type=SearchType.WEB)
         request = route.calls[0].request
@@ -54,7 +58,9 @@ class TestBertinaSearch:
 
     @respx.mock
     def test_news_type_adds_type_param(self):
-        route = respx.get(SEARCH_URL).mock(return_value=httpx.Response(200, text=NEWS_HTML))
+        route = respx.get(SEARCH_URL).mock(
+            return_value=httpx.Response(200, text=NEWS_HTML)
+        )
         with BertinaSearch() as client:
             client.search("python", type=SearchType.NEWS)
         request = route.calls[0].request
@@ -92,7 +98,9 @@ class TestBertinaSearch:
 
     @respx.mock
     def test_cache_avoids_second_request(self):
-        route = respx.get(SEARCH_URL).mock(return_value=httpx.Response(200, text=WEB_HTML))
+        route = respx.get(SEARCH_URL).mock(
+            return_value=httpx.Response(200, text=WEB_HTML)
+        )
         with BertinaSearch(cache_ttl=60) as client:
             client.search("python")
             client.search("python")

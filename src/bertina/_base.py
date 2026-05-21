@@ -25,7 +25,9 @@ def _is_retryable(exc: BaseException) -> bool:
         return True
     if isinstance(exc, BertinaHTTPError):
         return exc.status_code in RETRY_STATUS_CODES
-    if isinstance(exc, (httpx.ConnectError, httpx.TimeoutException, httpx.RemoteProtocolError)):
+    if isinstance(
+        exc, (httpx.ConnectError, httpx.TimeoutException, httpx.RemoteProtocolError)
+    ):
         return True
     return False
 
@@ -179,9 +181,13 @@ class AsyncBaseClient:
     async def check_url_alive(self, url: str, timeout: float = 5.0) -> bool:
         """Return True if the URL responds with a non-error status code."""
         try:
-            response = await self._client.head(url, timeout=timeout, follow_redirects=True)
+            response = await self._client.head(
+                url, timeout=timeout, follow_redirects=True
+            )
             if response.status_code == 405:
-                response = await self._client.get(url, timeout=timeout, follow_redirects=True)
+                response = await self._client.get(
+                    url, timeout=timeout, follow_redirects=True
+                )
             logger.debug("alive check %s -> %s", url, response.status_code)
             return response.status_code < 400
         except Exception as exc:
