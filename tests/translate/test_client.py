@@ -12,18 +12,22 @@ from bertina.translate import AsyncBertinaTranslate, BertinaTranslate, Language,
 TRANSLATE_URL = "https://translate.bertina.ir/api/translate"
 
 
-def _mock_response(translated: str, detected: str | None = None) -> dict:
-    data: dict = {"translatedText": translated}
+def _mock_body(translated: str, detected: str | None = None) -> str:
+    """Build a mock NDJSON body matching the real API stream format."""
+    import json
+    lines = [json.dumps({"response": translated, "done": False})]
+    final: dict = {"response": "", "done": True}
     if detected:
-        data["detectedLang"] = detected
-    return data
+        final["detectedLang"] = detected
+    lines.append(json.dumps(final))
+    return "\n".join(lines) + "\n"
 
 
 class TestBertinaTranslate:
     @respx.mock
     def test_basic_translation(self):
         respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json=_mock_response("سلام دنیا"))
+            return_value=httpx.Response(200, text=_mock_body("سلام دنیا"))
         )
         with BertinaTranslate() as client:
             result = client.translate("Hello world", target=Language.FA)
@@ -36,7 +40,7 @@ class TestBertinaTranslate:
     @respx.mock
     def test_explicit_source_language(self):
         respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json=_mock_response("Hello world"))
+            return_value=httpx.Response(200, text=_mock_body("Hello world"))
         )
         with BertinaTranslate() as client:
             result = client.translate("سلام دنیا", source=Language.FA, target=Language.EN)
@@ -46,7 +50,7 @@ class TestBertinaTranslate:
     @respx.mock
     def test_detected_lang_populated(self):
         respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json=_mock_response("سلام", detected="en"))
+            return_value=httpx.Response(200, text=_mock_body("سلام", detected="en"))
         )
         with BertinaTranslate() as client:
             result = client.translate("Hello", target=Language.FA)
@@ -55,7 +59,7 @@ class TestBertinaTranslate:
     @respx.mock
     def test_no_detected_lang_when_absent(self):
         respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json=_mock_response("سلام"))
+            return_value=httpx.Response(200, text=_mock_body("سلام"))
         )
         with BertinaTranslate() as client:
             result = client.translate("Hello", target=Language.FA)
@@ -64,7 +68,7 @@ class TestBertinaTranslate:
     @respx.mock
     def test_request_payload(self):
         route = respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json=_mock_response("مرحبا"))
+            return_value=httpx.Response(200, text=_mock_body("مرحبا"))
         )
         with BertinaTranslate() as client:
             client.translate("Hello", source=Language.EN, target=Language.AR)
@@ -84,7 +88,7 @@ class TestBertinaTranslate:
     @respx.mock
     def test_missing_translated_text_raises_parse_error(self):
         respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json={"error": "something went wrong"})
+            return_value=httpx.Response(200, text='{"done":true}\n')
         )
         with BertinaTranslate() as client:
             with pytest.raises(BertinaParseError):
@@ -106,7 +110,7 @@ class TestAsyncBertinaTranslate:
     @respx.mock
     async def test_basic_translation(self):
         respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json=_mock_response("سلام دنیا"))
+            return_value=httpx.Response(200, text=_mock_body("سلام دنیا"))
         )
         async with AsyncBertinaTranslate() as client:
             result = await client.translate("Hello world", target=Language.FA)
@@ -116,7 +120,7 @@ class TestAsyncBertinaTranslate:
     @respx.mock
     async def test_detected_lang_populated(self):
         respx.post(TRANSLATE_URL).mock(
-            return_value=httpx.Response(200, json=_mock_response("سلام", detected="en"))
+            return_value=httpx.Response(200, text=_mock_body("سلام", detected="en"))
         )
         async with AsyncBertinaTranslate() as client:
             result = await client.translate("Hello", target=Language.FA)
