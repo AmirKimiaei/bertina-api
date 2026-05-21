@@ -23,17 +23,22 @@ Bertina is a Persian AI-powered search engine. This library wraps its public pag
 
 ## Installation
 
+### Option 1 — Install from GitHub (recommended)
+
 ```bash
-# Clone the repo
-git clone https://github.com/Amir_Kimiaei/bertina-py.git
+pip install git+https://github.com/AmirKimiaei/bertina-api.git
+```
+
+### Option 2 — Clone and install locally
+
+```bash
+git clone https://github.com/AmirKimiaei/bertina-api.git
 cd bertina-api
 
-# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate       # Linux / macOS
 .venv\Scripts\activate          # Windows
 
-# Install
 pip install -e .
 ```
 
