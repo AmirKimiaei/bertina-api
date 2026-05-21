@@ -1,4 +1,4 @@
-# bertina-py
+# bertina-api
 
 A Python SDK for the [Bertina](https://search.bertina.ir) ecosystem — search, news radar, places, translation, and weather.
 
@@ -26,7 +26,7 @@ Bertina is a Persian AI-powered search engine. This library wraps its public pag
 ```bash
 # Clone the repo
 git clone https://github.com/Amir_Kimiaei/bertina-py.git
-cd bertina-py
+cd bertina-api
 
 # Create and activate virtual environment
 python3 -m venv .venv
