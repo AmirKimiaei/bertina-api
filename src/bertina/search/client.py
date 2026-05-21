@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from .._base import AsyncBaseClient, BaseClient
 from ..constants import SEARCH_BASE
@@ -22,25 +22,25 @@ from .models import SearchResponse, WebResult
 
 logger = logging.getLogger("bertina.search")
 
-_REGISTRY = {
-    SearchType.WEB:      parse_web_results,
-    SearchType.NEWS:     parse_news_results,
+_REGISTRY: dict[SearchType, Callable[..., list[Any]]] = {
+    SearchType.WEB: parse_web_results,
+    SearchType.NEWS: parse_news_results,
     SearchType.SHOPPING: parse_shopping_results,
-    SearchType.PLACES:   parse_place_results,
-    SearchType.IMAGES:   parse_image_results,
-    SearchType.VIDEOS:   parse_video_results,
-    SearchType.SCHOLAR:  parse_scholar_results,
+    SearchType.PLACES: parse_place_results,
+    SearchType.IMAGES: parse_image_results,
+    SearchType.VIDEOS: parse_video_results,
+    SearchType.SCHOLAR: parse_scholar_results,
 }
 
 # Per-type cache TTL overrides (seconds)
 _TTL = {
-    SearchType.WEB:      300,
-    SearchType.NEWS:     300,
+    SearchType.WEB: 300,
+    SearchType.NEWS: 300,
     SearchType.SHOPPING: 300,
-    SearchType.IMAGES:   300,
-    SearchType.VIDEOS:   300,
-    SearchType.PLACES:   3600,
-    SearchType.SCHOLAR:  3600,
+    SearchType.IMAGES: 300,
+    SearchType.VIDEOS: 300,
+    SearchType.PLACES: 3600,
+    SearchType.SCHOLAR: 3600,
 }
 
 
@@ -54,7 +54,9 @@ def _build_params(query: str, search_type: SearchType, page: int) -> dict:
     return params
 
 
-def _parse_response(html: str, query: str, search_type: SearchType, page: int, debug: bool) -> SearchResponse:
+def _parse_response(
+    html: str, query: str, search_type: SearchType, page: int, debug: bool
+) -> SearchResponse:
     soup = parse_html(html)
     parser = _REGISTRY.get(search_type, parse_web_results)
     try:
@@ -91,7 +93,9 @@ class BertinaSearch(BaseClient):
         html = self._get(url, params)
         return _parse_response(html, query, type, page, self.debug)
 
-    def check_alive(self, response: SearchResponse, *, timeout: float = 5.0) -> SearchResponse:
+    def check_alive(
+        self, response: SearchResponse, *, timeout: float = 5.0
+    ) -> SearchResponse:
         """Check which WebResult URLs are reachable. Populates is_alive on each result."""
         for result in response.results:
             if isinstance(result, WebResult) and result.url:
@@ -118,9 +122,13 @@ class AsyncBertinaSearch(AsyncBaseClient):
         html = await self._aget(url, params)
         return _parse_response(html, query, type, page, self.debug)
 
-    async def check_alive(self, response: SearchResponse, *, timeout: float = 5.0) -> SearchResponse:
+    async def check_alive(
+        self, response: SearchResponse, *, timeout: float = 5.0
+    ) -> SearchResponse:
         """Concurrently check which WebResult URLs are reachable."""
-        web_results = [r for r in response.results if isinstance(r, WebResult) and r.url]
+        web_results = [
+            r for r in response.results if isinstance(r, WebResult) and r.url
+        ]
         if not web_results:
             return response
 
