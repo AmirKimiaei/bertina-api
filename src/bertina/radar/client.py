@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from .._base import AsyncBaseClient, BaseClient
-from ..constants import SEARCH_BASE
+from ..constants import SEARCH_BASE, SEARCH_HEADERS
 from .._parsers import parse_html
 from .parsers import parse_radar_page
 from .models import RadarPage
@@ -19,6 +19,7 @@ class BertinaRadar(BaseClient):
     """Synchronous Bertina news radar client."""
 
     def __init__(self, *, cache_ttl: int = _DEFAULT_TTL, **kwargs: Any) -> None:
+        kwargs.setdefault("headers", SEARCH_HEADERS)
         super().__init__(cache_ttl=cache_ttl, **kwargs)
 
     def get(self) -> RadarPage:
@@ -35,6 +36,7 @@ class AsyncBertinaRadar(AsyncBaseClient):
     """Asynchronous Bertina news radar client."""
 
     def __init__(self, *, cache_ttl: int = _DEFAULT_TTL, **kwargs: Any) -> None:
+        kwargs.setdefault("headers", SEARCH_HEADERS)
         super().__init__(cache_ttl=cache_ttl, **kwargs)
 
     async def get(self) -> RadarPage:

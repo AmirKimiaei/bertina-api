@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 from .._base import AsyncBaseClient, BaseClient
 from .._parsers import parse_html
-from ..constants import SEARCH_BASE
+from ..constants import SEARCH_BASE, SEARCH_HEADERS
 from ..exceptions import BertinaParseError
 from .models import PlaceCard, PlaceDetail, PlacesCategory, Province
 from .parsers import (
@@ -28,6 +28,7 @@ class BertinaPlaces(BaseClient):
     """Synchronous Bertina places client."""
 
     def __init__(self, *, cache_ttl: int | None = None, **kwargs: Any) -> None:
+        kwargs.setdefault("headers", SEARCH_HEADERS)
         super().__init__(cache_ttl=cache_ttl or _PROVINCES_TTL, **kwargs)
 
     def get_provinces(self) -> list[Province]:
@@ -74,6 +75,7 @@ class AsyncBertinaPlaces(AsyncBaseClient):
     """Asynchronous Bertina places client."""
 
     def __init__(self, *, cache_ttl: int | None = None, **kwargs: Any) -> None:
+        kwargs.setdefault("headers", SEARCH_HEADERS)
         super().__init__(cache_ttl=cache_ttl or _PROVINCES_TTL, **kwargs)
 
     async def get_provinces(self) -> list[Province]:

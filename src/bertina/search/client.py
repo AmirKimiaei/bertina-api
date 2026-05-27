@@ -5,7 +5,7 @@ import logging
 from typing import Any, Callable
 
 from .._base import AsyncBaseClient, BaseClient
-from ..constants import SEARCH_BASE
+from ..constants import SEARCH_BASE, SEARCH_HEADERS
 from ..exceptions import BertinaParseError
 from .parsers import (
     parse_image_results,
@@ -78,6 +78,7 @@ class BertinaSearch(BaseClient):
     """Synchronous Bertina search client."""
 
     def __init__(self, *, cache_ttl: int | None = None, **kwargs: Any) -> None:
+        kwargs.setdefault("headers", SEARCH_HEADERS)
         super().__init__(cache_ttl=cache_ttl or 300, **kwargs)
 
     def search(
@@ -107,6 +108,7 @@ class AsyncBertinaSearch(AsyncBaseClient):
     """Asynchronous Bertina search client."""
 
     def __init__(self, *, cache_ttl: int | None = None, **kwargs: Any) -> None:
+        kwargs.setdefault("headers", SEARCH_HEADERS)
         super().__init__(cache_ttl=cache_ttl or 300, **kwargs)
 
     async def search(
