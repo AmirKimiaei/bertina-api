@@ -1,15 +1,12 @@
 from __future__ import annotations
 
+import json
+from unittest.mock import AsyncMock, patch
 
-import httpx
 import pytest
-import respx
 
 from bertina.exceptions import BertinaHTTPError, BertinaParseError
 from bertina.weather import AsyncBertinaWeather, BertinaWeather, WeatherForecast
-
-GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
-FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 
 def _geocoding_response(
@@ -55,125 +52,84 @@ def _forecast_response() -> dict:
 
 
 class TestBertinaWeather:
-    @respx.mock
     def test_forecast_returns_weather_forecast(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json=_geocoding_response())
-        )
-        respx.get(FORECAST_URL).mock(
-            return_value=httpx.Response(200, json=_forecast_response())
-        )
-        with BertinaWeather() as client:
-            result = client.forecast("Tehran")
+        responses = [json.dumps(_geocoding_response()), json.dumps(_forecast_response())]
+        with patch.object(BertinaWeather, "_get", side_effect=responses):
+            with BertinaWeather() as client:
+                result = client.forecast("Tehran")
         assert isinstance(result, WeatherForecast)
 
-    @respx.mock
     def test_forecast_location_name(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json=_geocoding_response("تهران"))
-        )
-        respx.get(FORECAST_URL).mock(
-            return_value=httpx.Response(200, json=_forecast_response())
-        )
-        with BertinaWeather() as client:
-            result = client.forecast("تهران")
+        responses = [json.dumps(_geocoding_response("تهران")), json.dumps(_forecast_response())]
+        with patch.object(BertinaWeather, "_get", side_effect=responses):
+            with BertinaWeather() as client:
+                result = client.forecast("تهران")
         assert result.location == "تهران"
 
-    @respx.mock
     def test_current_weather_fields(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json=_geocoding_response())
-        )
-        respx.get(FORECAST_URL).mock(
-            return_value=httpx.Response(200, json=_forecast_response())
-        )
-        with BertinaWeather() as client:
-            result = client.forecast("Tehran")
+        responses = [json.dumps(_geocoding_response()), json.dumps(_forecast_response())]
+        with patch.object(BertinaWeather, "_get", side_effect=responses):
+            with BertinaWeather() as client:
+                result = client.forecast("Tehran")
         assert result.current.temperature == 22.0
         assert result.current.feels_like == 20.5
         assert result.current.humidity == 45
         assert result.current.wind_speed == 10.0
         assert result.current.condition == "عمدتاً صاف"
 
-    @respx.mock
     def test_daily_forecast_count(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json=_geocoding_response())
-        )
-        respx.get(FORECAST_URL).mock(
-            return_value=httpx.Response(200, json=_forecast_response())
-        )
-        with BertinaWeather() as client:
-            result = client.forecast("Tehran")
+        responses = [json.dumps(_geocoding_response()), json.dumps(_forecast_response())]
+        with patch.object(BertinaWeather, "_get", side_effect=responses):
+            with BertinaWeather() as client:
+                result = client.forecast("Tehran")
         assert len(result.daily) == 2
         assert result.daily[0].temp_max == 24.0
         assert result.daily[0].temp_min == 14.0
 
-    @respx.mock
     def test_hourly_forecast_count(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json=_geocoding_response())
-        )
-        respx.get(FORECAST_URL).mock(
-            return_value=httpx.Response(200, json=_forecast_response())
-        )
-        with BertinaWeather() as client:
-            result = client.forecast("Tehran")
+        responses = [json.dumps(_geocoding_response()), json.dumps(_forecast_response())]
+        with patch.object(BertinaWeather, "_get", side_effect=responses):
+            with BertinaWeather() as client:
+                result = client.forecast("Tehran")
         assert len(result.hourly) == 2
         assert result.hourly[0].temperature == 20.0
 
-    @respx.mock
     def test_city_not_found_raises_parse_error(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json={"results": []})
-        )
-        with BertinaWeather() as client:
-            with pytest.raises(BertinaParseError, match="city not found"):
-                client.forecast("xyznotacity")
+        with patch.object(BertinaWeather, "_get", return_value=json.dumps({"results": []})):
+            with BertinaWeather() as client:
+                with pytest.raises(BertinaParseError, match="city not found"):
+                    client.forecast("xyznotacity")
 
-    @respx.mock
     def test_geocoding_http_error_raises(self):
-        respx.get(GEOCODING_URL).mock(return_value=httpx.Response(500))
-        with BertinaWeather(max_retries=1) as client:
-            with pytest.raises(BertinaHTTPError):
-                client.forecast("Tehran")
+        with patch.object(BertinaWeather, "_get", side_effect=BertinaHTTPError("HTTP 500", 500)):
+            with BertinaWeather() as client:
+                with pytest.raises(BertinaHTTPError):
+                    client.forecast("Tehran")
 
-    @respx.mock
     def test_coordinates_from_geocoding(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(
-                200, json=_geocoding_response(lat=35.69, lon=51.42)
-            )
-        )
-        respx.get(FORECAST_URL).mock(
-            return_value=httpx.Response(200, json=_forecast_response())
-        )
-        with BertinaWeather() as client:
-            result = client.forecast("Tehran")
+        responses = [
+            json.dumps(_geocoding_response(lat=35.69, lon=51.42)),
+            json.dumps(_forecast_response()),
+        ]
+        with patch.object(BertinaWeather, "_get", side_effect=responses):
+            with BertinaWeather() as client:
+                result = client.forecast("Tehran")
         assert result.latitude == pytest.approx(35.69)
         assert result.longitude == pytest.approx(51.42)
 
 
 class TestAsyncBertinaWeather:
-    @respx.mock
     async def test_forecast_returns_weather_forecast(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json=_geocoding_response("تهران"))
-        )
-        respx.get(FORECAST_URL).mock(
-            return_value=httpx.Response(200, json=_forecast_response())
-        )
-        async with AsyncBertinaWeather() as client:
-            result = await client.forecast("تهران")
+        responses = [json.dumps(_geocoding_response("تهران")), json.dumps(_forecast_response())]
+        with patch.object(AsyncBertinaWeather, "_aget", new_callable=AsyncMock, side_effect=responses):
+            async with AsyncBertinaWeather() as client:
+                result = await client.forecast("تهران")
         assert isinstance(result, WeatherForecast)
         assert result.location == "تهران"
         assert len(result.daily) == 2
 
-    @respx.mock
     async def test_city_not_found_raises(self):
-        respx.get(GEOCODING_URL).mock(
-            return_value=httpx.Response(200, json={"results": []})
-        )
-        async with AsyncBertinaWeather() as client:
-            with pytest.raises(BertinaParseError):
-                await client.forecast("xyznotacity")
+        with patch.object(AsyncBertinaWeather, "_aget", new_callable=AsyncMock, return_value=json.dumps({"results": []})):
+            async with AsyncBertinaWeather() as client:
+                with pytest.raises(BertinaParseError):
+                    await client.forecast("xyznotacity")
