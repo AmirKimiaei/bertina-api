@@ -556,7 +556,49 @@ The library is designed to appear as a real Chrome browser to avoid bot detectio
 - **`Referer` header** — search, places, and radar clients send `https://search.bertina.ir/` as the referer, matching real browser navigation
 - **Request pacing** — a random delay of 1.5–3.5 s is added before every real HTTP request (cache hits are instant); additionally a longer pause of 30–300 s is triggered after every 10–70 requests to mimic natural browsing sessions
 
-No configuration is required — all of this is on by default.
+No configuration is required — all of this is on by default. The pacing behaviour can be customised or replaced entirely via `sleep_strategy` (see [Custom sleep strategy](#custom-sleep-strategy) below).
+
+---
+
+## Custom Sleep Strategy
+
+Every client accepts a `sleep_strategy` parameter — any callable that takes no arguments and returns a `float` (seconds to sleep). The default is `DefaultSleepStrategy`.
+
+```python
+from bertina import DefaultSleepStrategy
+from bertina.search import BertinaSearch
+
+# No sleep — useful for testing or trusted internal networks
+BertinaSearch(sleep_strategy=lambda: 0.0)
+
+# Fixed 2 s between every request
+BertinaSearch(sleep_strategy=lambda: 2.0)
+
+# Tweak the built-in defaults
+import random
+class FastSleep:
+    def __call__(self) -> float:
+        return round(random.uniform(0.5, 1.5), 2)
+
+BertinaSearch(sleep_strategy=FastSleep())
+
+# Subclass DefaultSleepStrategy to adjust only the per-request range
+class CustomSleep(DefaultSleepStrategy):
+    def __call__(self) -> float:
+        self._request_count += 1
+        return round(random.uniform(2.0, 5.0), 2)   # slower, no bulk pause
+
+BertinaSearch(sleep_strategy=CustomSleep())
+```
+
+The same `sleep_strategy` parameter works on all async clients too:
+
+```python
+from bertina.search import AsyncBertinaSearch
+
+async with AsyncBertinaSearch(sleep_strategy=lambda: 0.0) as client:
+    resp = await client.search("python")
+```
 
 ---
 

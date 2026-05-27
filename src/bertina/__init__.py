@@ -5,6 +5,7 @@ from .exceptions import (
     BertinaRateLimitError,
 )
 from .constants import DNS_IP
+from ._base import DefaultSleepStrategy, SleepStrategy
 
 __version__ = "0.1.0"
 __all__ = [
@@ -13,5 +14,7 @@ __all__ = [
     "BertinaParseError",
     "BertinaRateLimitError",
     "DNS_IP",
+    "DefaultSleepStrategy",
+    "SleepStrategy",
     "__version__",
 ]

@@ -5,7 +5,7 @@ import hashlib
 import logging
 import random
 import time
-from typing import Any
+from typing import Any, Callable
 
 from curl_cffi import requests as curl_requests
 from curl_cffi.requests import AsyncSession
@@ -23,6 +23,54 @@ from .exceptions import BertinaHTTPError, BertinaRateLimitError
 logger = logging.getLogger("bertina")
 
 _IMPERSONATE = "chrome124"
+
+# Type alias: any callable that takes no args and returns seconds to sleep.
+SleepStrategy = Callable[[], float]
+
+
+class DefaultSleepStrategy:
+    """Default pacing strategy.
+
+    - Per-request: random 1.50–3.50 s before every real HTTP call.
+    - Bulk: random 30.001–300.008 s pause after every 10–70 requests.
+
+    Pass a different callable as ``sleep_strategy`` to any client to replace
+    this entirely. Examples::
+
+        # no sleep at all
+        BertinaSearch(sleep_strategy=lambda: 0.0)
+
+        # fixed 2 s between requests
+        BertinaSearch(sleep_strategy=lambda: 2.0)
+
+        # custom class with state
+        class MySleep:
+            def __call__(self) -> float:
+                return random.uniform(0.5, 1.5)
+
+        BertinaSearch(sleep_strategy=MySleep())
+    """
+
+    def __init__(self) -> None:
+        self._request_count = 0
+        self._next_bulk_threshold = random.randint(10, 70)
+
+    def __call__(self) -> float:
+        self._request_count += 1
+        per_delay = round(random.uniform(1.50, 3.50), 2)
+
+        if self._request_count >= self._next_bulk_threshold:
+            bulk_delay = round(random.uniform(30.001, 300.008), 3)
+            logger.debug(
+                "bulk sleep after %d requests: %.3fs",
+                self._request_count,
+                bulk_delay,
+            )
+            self._request_count = 0
+            self._next_bulk_threshold = random.randint(10, 70)
+            return round(per_delay + bulk_delay, 3)
+
+        return per_delay
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -75,6 +123,7 @@ class BaseClient:
         debug: bool = False,
         cache_ttl: int = 300,
         max_retries: int = 3,
+        sleep_strategy: SleepStrategy | None = None,
     ) -> None:
         self.debug = debug
         self._cache = _CacheStore(cache_ttl)
@@ -86,8 +135,7 @@ class BaseClient:
             proxies={"http://": proxy, "https://": proxy} if proxy else None,
         )
         self._max_retries = max_retries
-        self._request_count = 0
-        self._next_bulk_threshold = random.randint(10, 70)
+        self._sleep = sleep_strategy if sleep_strategy is not None else DefaultSleepStrategy()
 
     def _get(self, url: str, params: dict | None = None) -> str:
         params = params or {}
@@ -96,19 +144,9 @@ class BaseClient:
             logger.debug("cache hit: %s %s", url, params)
             return cached
 
-        per_delay = round(random.uniform(1.50, 3.50), 2)
-        logger.debug("per-request sleep %.2fs", per_delay)
-        time.sleep(per_delay)
-
-        self._request_count += 1
-        if self._request_count >= self._next_bulk_threshold:
-            bulk_delay = round(random.uniform(30.001, 300.008), 3)
-            logger.debug(
-                "bulk sleep after %d requests: %.3fs", self._request_count, bulk_delay
-            )
-            time.sleep(bulk_delay)
-            self._request_count = 0
-            self._next_bulk_threshold = random.randint(10, 70)
+        delay = self._sleep()
+        logger.debug("sleep %.3fs", delay)
+        time.sleep(delay)
 
         @retry(
             retry=retry_if_exception(_is_retryable),
@@ -159,6 +197,7 @@ class AsyncBaseClient:
         cache_ttl: int = 300,
         max_retries: int = 3,
         max_concurrent: int = 5,
+        sleep_strategy: SleepStrategy | None = None,
     ) -> None:
         self.debug = debug
         self._cache = _CacheStore(cache_ttl)
@@ -171,8 +210,7 @@ class AsyncBaseClient:
         )
         self._max_retries = max_retries
         self._semaphore = asyncio.Semaphore(max_concurrent)
-        self._request_count = 0
-        self._next_bulk_threshold = random.randint(10, 70)
+        self._sleep = sleep_strategy if sleep_strategy is not None else DefaultSleepStrategy()
 
     async def _aget(self, url: str, params: dict | None = None) -> str:
         params = params or {}
@@ -181,19 +219,9 @@ class AsyncBaseClient:
             logger.debug("cache hit: %s %s", url, params)
             return cached
 
-        per_delay = round(random.uniform(1.50, 3.50), 2)
-        logger.debug("per-request sleep %.2fs", per_delay)
-        await asyncio.sleep(per_delay)
-
-        self._request_count += 1
-        if self._request_count >= self._next_bulk_threshold:
-            bulk_delay = round(random.uniform(30.001, 300.008), 3)
-            logger.debug(
-                "bulk sleep after %d requests: %.3fs", self._request_count, bulk_delay
-            )
-            await asyncio.sleep(bulk_delay)
-            self._request_count = 0
-            self._next_bulk_threshold = random.randint(10, 70)
+        delay = self._sleep()
+        logger.debug("sleep %.3fs", delay)
+        await asyncio.sleep(delay)
 
         @retry(
             retry=retry_if_exception(_is_retryable),
