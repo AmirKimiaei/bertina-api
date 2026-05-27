@@ -18,21 +18,22 @@ Bertina is a Persian AI-powered search engine. This library wraps its public pag
 - **Async rate limiter** — configurable concurrency limit
 - **Debug mode** — attach raw HTML to any response
 - **Proxy support**
+- **Bot detection avoidance** — Chrome TLS fingerprint, real browser headers, and randomised request pacing
 
 ---
 
 ## Installation
 
-### Option 1 — Install from GitHub (recommended)
+### Option 1 — Install from remote (recommended)
 
 ```bash
-pip install git+https://github.com/AmirKimiaei/bertina-api.git
+pip install git+https://git.zwire.ir/mattco/beartina-api.git
 ```
 
 ### Option 2 — Clone and install locally
 
 ```bash
-git clone https://github.com/AmirKimiaei/bertina-api.git
+git clone https://git.zwire.ir/mattco/beartina-api.git
 cd bertina-api
 
 python3 -m venv .venv
@@ -516,7 +517,7 @@ All clients accept these parameters:
 ```python
 BertinaSearch(
     timeout=15.0,        # request timeout in seconds
-    headers={},          # override default headers
+    headers={},          # override or extend default headers
     proxy="http://...",  # HTTP/SOCKS proxy URL
     debug=False,         # attach raw HTML to responses
     cache_ttl=300,       # cache lifetime in seconds
@@ -542,6 +543,20 @@ with BertinaSearch(debug=True) as client:
 with BertinaSearch(cache_ttl=600) as client:
     resp = client.search("python")
 ```
+
+---
+
+## Bot Detection Avoidance
+
+The library is designed to appear as a real Chrome browser to avoid bot detection:
+
+- **TLS fingerprint** — uses [`curl_cffi`](https://github.com/yifeikong/curl-cffi) to impersonate Chrome 124 at the TLS/JA3 level, matching the exact handshake a real browser sends
+- **Browser headers** — `sec-ch-ua`, `Sec-Fetch-*`, `Accept`, `Accept-Encoding` are set automatically and consistently by the impersonation profile
+- **Correct `Accept-Language`** — `en,fa;q=0.9` (taken from real HAR captures of the site)
+- **`Referer` header** — search, places, and radar clients send `https://search.bertina.ir/` as the referer, matching real browser navigation
+- **Request pacing** — a random delay of 1.5–3.5 s is added before every real HTTP request (cache hits are instant); additionally a longer pause of 30–300 s is triggered after every 10–70 requests to mimic natural browsing sessions
+
+No configuration is required — all of this is on by default.
 
 ---
 
@@ -601,7 +616,7 @@ print(DNS_IP)  # 193.186.32.32
 ```
 src/bertina/
 ├── __init__.py        — top-level exports and version
-├── _base.py           — shared HTTP client (retry, cache, rate limiter)
+├── _base.py           — shared HTTP client (curl_cffi, retry, cache, pacing)
 ├── _parsers.py        — shared HTML parsing helpers
 ├── constants.py       — service URLs, headers, DNS IP
 ├── exceptions.py      — BertinaError hierarchy
@@ -612,7 +627,7 @@ src/bertina/
 └── weather/           — weather module (open-meteo.com)
 
 tests/
-├── conftest.py        — shared fixture loader
+├── conftest.py        — shared fixture loader + no_sleep autouse fixture
 ├── search/            — parser + client tests, 7 HTML fixtures
 ├── radar/             — parser + client tests, 1 HTML fixture
 ├── places/            — parser + client tests, 4 HTML fixtures
