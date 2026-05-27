@@ -3,10 +3,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import random
 import time
 from typing import Any
 
-import httpx
+from curl_cffi import requests as curl_requests
+from curl_cffi.requests import AsyncSession
+from curl_cffi.requests import RequestsError
 from tenacity import (
     retry,
     retry_if_exception,
@@ -19,20 +22,20 @@ from .exceptions import BertinaHTTPError, BertinaRateLimitError
 
 logger = logging.getLogger("bertina")
 
+_IMPERSONATE = "chrome124"
+
 
 def _is_retryable(exc: BaseException) -> bool:
     if isinstance(exc, BertinaRateLimitError):
         return True
     if isinstance(exc, BertinaHTTPError):
         return exc.status_code in RETRY_STATUS_CODES
-    if isinstance(
-        exc, (httpx.ConnectError, httpx.TimeoutException, httpx.RemoteProtocolError)
-    ):
+    if isinstance(exc, RequestsError):
         return True
     return False
 
 
-def _check_response(response: httpx.Response) -> None:
+def _check_response(response: Any) -> None:
     if response.status_code == 429:
         raise BertinaRateLimitError()
     if response.status_code >= 400:
@@ -76,13 +79,15 @@ class BaseClient:
         self.debug = debug
         self._cache = _CacheStore(cache_ttl)
         merged = {**DEFAULT_HEADERS, **(headers or {})}
-        self._client = httpx.Client(
-            timeout=timeout,
+        self._client = curl_requests.Session(
+            impersonate=_IMPERSONATE,
             headers=merged,
-            proxy=proxy,
-            follow_redirects=True,
+            timeout=timeout,
+            proxies={"http://": proxy, "https://": proxy} if proxy else None,
         )
         self._max_retries = max_retries
+        self._request_count = 0
+        self._next_bulk_threshold = random.randint(10, 70)
 
     def _get(self, url: str, params: dict | None = None) -> str:
         params = params or {}
@@ -90,6 +95,20 @@ class BaseClient:
         if cached is not None:
             logger.debug("cache hit: %s %s", url, params)
             return cached
+
+        per_delay = round(random.uniform(1.50, 3.50), 2)
+        logger.debug("per-request sleep %.2fs", per_delay)
+        time.sleep(per_delay)
+
+        self._request_count += 1
+        if self._request_count >= self._next_bulk_threshold:
+            bulk_delay = round(random.uniform(30.001, 300.008), 3)
+            logger.debug(
+                "bulk sleep after %d requests: %.3fs", self._request_count, bulk_delay
+            )
+            time.sleep(bulk_delay)
+            self._request_count = 0
+            self._next_bulk_threshold = random.randint(10, 70)
 
         @retry(
             retry=retry_if_exception(_is_retryable),
@@ -110,10 +129,9 @@ class BaseClient:
     def check_url_alive(self, url: str, timeout: float = 5.0) -> bool:
         """Return True if the URL responds with a non-error status code."""
         try:
-            response = self._client.head(url, timeout=timeout, follow_redirects=True)
-            # Some servers block HEAD — fall back to GET with no body
+            response = self._client.head(url, timeout=timeout)
             if response.status_code == 405:
-                response = self._client.get(url, timeout=timeout, follow_redirects=True)
+                response = self._client.get(url, timeout=timeout)
             logger.debug("alive check %s -> %s", url, response.status_code)
             return response.status_code < 400
         except Exception as exc:
@@ -145,14 +163,16 @@ class AsyncBaseClient:
         self.debug = debug
         self._cache = _CacheStore(cache_ttl)
         merged = {**DEFAULT_HEADERS, **(headers or {})}
-        self._client = httpx.AsyncClient(
-            timeout=timeout,
+        self._client = AsyncSession(
+            impersonate=_IMPERSONATE,
             headers=merged,
-            proxy=proxy,
-            follow_redirects=True,
+            timeout=timeout,
+            proxies={"http://": proxy, "https://": proxy} if proxy else None,
         )
         self._max_retries = max_retries
         self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._request_count = 0
+        self._next_bulk_threshold = random.randint(10, 70)
 
     async def _aget(self, url: str, params: dict | None = None) -> str:
         params = params or {}
@@ -160,6 +180,20 @@ class AsyncBaseClient:
         if cached is not None:
             logger.debug("cache hit: %s %s", url, params)
             return cached
+
+        per_delay = round(random.uniform(1.50, 3.50), 2)
+        logger.debug("per-request sleep %.2fs", per_delay)
+        await asyncio.sleep(per_delay)
+
+        self._request_count += 1
+        if self._request_count >= self._next_bulk_threshold:
+            bulk_delay = round(random.uniform(30.001, 300.008), 3)
+            logger.debug(
+                "bulk sleep after %d requests: %.3fs", self._request_count, bulk_delay
+            )
+            await asyncio.sleep(bulk_delay)
+            self._request_count = 0
+            self._next_bulk_threshold = random.randint(10, 70)
 
         @retry(
             retry=retry_if_exception(_is_retryable),
@@ -181,13 +215,9 @@ class AsyncBaseClient:
     async def check_url_alive(self, url: str, timeout: float = 5.0) -> bool:
         """Return True if the URL responds with a non-error status code."""
         try:
-            response = await self._client.head(
-                url, timeout=timeout, follow_redirects=True
-            )
+            response = await self._client.head(url, timeout=timeout)
             if response.status_code == 405:
-                response = await self._client.get(
-                    url, timeout=timeout, follow_redirects=True
-                )
+                response = await self._client.get(url, timeout=timeout)
             logger.debug("alive check %s -> %s", url, response.status_code)
             return response.status_code < 400
         except Exception as exc:
@@ -195,7 +225,7 @@ class AsyncBaseClient:
             return False
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        await self._client.close()
 
     async def __aenter__(self) -> "AsyncBaseClient":
         return self
